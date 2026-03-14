@@ -1,0 +1,63 @@
+{
+  "name": "tenanso",
+  "version": "0.1.0",
+  "description": "Multi-tenant SQLite with Drizzle ORM and Turso",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    },
+    "./hono": {
+      "import": "./dist/middleware/hono.js",
+      "types": "./dist/middleware/hono.d.ts"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:e2e": "vitest run --config vitest.config.e2e.ts",
+    "docs:typedoc": "typedoc",
+    "docs:dev": "pnpm docs:typedoc && vitepress dev docs",
+    "docs:build": "pnpm docs:typedoc && vitepress build docs",
+    "docs:preview": "vitepress preview docs"
+  },
+  "keywords": [
+    "multi-tenant",
+    "sqlite",
+    "turso",
+    "drizzle",
+    "hono"
+  ],
+  "license": "MIT",
+  "packageManager": "pnpm@10.12.1",
+  "dependencies": {
+    "@libsql/client": "^0.17.0",
+    "drizzle-orm": "^0.45.1"
+  },
+  "peerDependencies": {
+    "hono": "^4.0.0"
+  },
+  "peerDependenciesMeta": {
+    "hono": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@hono/node-server": "^1.19.11",
+    "hono": "^4.12.7",
+    "typedoc": "^0.28.17",
+    "typedoc-plugin-markdown": "^4.10.0",
+    "typedoc-vitepress-theme": "^1.1.2",
+    "typescript": "^5.9.3",
+    "vitepress": "^1.6.4",
+    "vitest": "^3.2.3"
+  }
+}

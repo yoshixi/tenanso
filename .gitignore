@@ -1,0 +1,10 @@
+node_modules/
+dist/
+*.tsbuildinfo
+.env
+.env.*
+docs/.vitepress/cache/
+docs/.vitepress/dist/
+docs/api/
+e2e/.test-dbs/
+.claude/settings.local.json
