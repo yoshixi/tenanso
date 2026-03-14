@@ -27,7 +27,8 @@
     "docs:typedoc": "typedoc",
     "docs:dev": "pnpm docs:typedoc && vitepress dev docs",
     "docs:build": "pnpm docs:typedoc && vitepress build docs",
-    "docs:preview": "vitepress preview docs"
+    "docs:preview": "vitepress preview docs",
+    "docs:deploy": "pnpm docs:build && wrangler deploy"
   },
   "keywords": [
     "multi-tenant",
@@ -58,6 +59,7 @@
     "typedoc-vitepress-theme": "^1.1.2",
     "typescript": "^5.9.3",
     "vitepress": "^1.6.4",
-    "vitest": "^3.2.3"
+    "vitest": "^3.2.3",
+    "wrangler": "^4.73.0"
   }
 }
