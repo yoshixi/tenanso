@@ -1,0 +1,7 @@
+{
+  "entryPoints": ["src/index.ts", "src/middleware/hono.ts"],
+  "out": "docs/api",
+  "plugin": ["typedoc-plugin-markdown", "typedoc-vitepress-theme"],
+  "docsRoot": "./docs",
+  "tsconfig": "./tsconfig.json"
+}
