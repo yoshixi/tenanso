@@ -19,6 +19,7 @@
     "dist"
   ],
   "scripts": {
+    "prepublishOnly": "pnpm build",
     "build": "tsc",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
@@ -37,6 +38,12 @@
     "drizzle",
     "hono"
   ],
+  "author": "yoshixi",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yoshixi/tenanso.git"
+  },
+  "homepage": "https://github.com/yoshixi/tenanso",
   "license": "MIT",
   "packageManager": "pnpm@10.12.1",
   "dependencies": {
