@@ -8,20 +8,27 @@ Inspired by Rails 8's [activerecord-tenanted](https://github.com/basecamp/active
 
 ## Features
 
-- **Database-per-tenant isolation** — each tenant's data is physically separated
-- **Runtime-agnostic** — works on Cloudflare Workers, Deno, Bun, and Node.js (no `node:` imports)
+- **Database-per-tenant isolation** — each tenant's data is physically separated, no `WHERE tenant_id = ?` needed
+- **Runtime-agnostic** — core uses only `fetch` and `Map`, no `node:` imports. Works on Cloudflare Workers, Deno, Bun, and Node.js
 - **Turso Platform API integration** — create and delete tenant databases dynamically
-- **Connection pooling** — LRU cache of Drizzle instances with configurable max connections
-- **Hono middleware** — optional first-class integration with [Hono](https://hono.dev/)
+- **LRU connection pooling** — caps memory and file descriptor usage with configurable `maxConnections` (default 50)
+- **Hono middleware** — optional peer dependency with first-class integration. `import "tenanso"` has zero Hono imports
 - **Type-safe** — full TypeScript support with Drizzle's type inference
 
 ## Install
 
 ```bash
+npm install tenanso drizzle-orm @libsql/client
+# or
 pnpm add tenanso drizzle-orm @libsql/client
+# or
+yarn add tenanso drizzle-orm @libsql/client
+```
 
-# If using Hono middleware
-pnpm add hono
+If using the Hono middleware:
+
+```bash
+npm install hono
 ```
 
 ## Quick Start
@@ -247,16 +254,6 @@ npx drizzle-kit push --url libsql://seed-db-my-app-my-account.turso.io --auth-to
 ```
 
 See the [Turso Setup guide](/guide/turso-setup) for more details.
-
-## Design Decisions
-
-| Decision | Rationale |
-|---|---|
-| No Node.js runtime dependency | Core uses `fetch` and `Map` only. Works on Cloudflare Workers, Deno, Bun. |
-| No built-in async context | Core passes `db` explicitly. Framework adapters (Hono's `contextStorage()`) handle implicit context. |
-| Hono as optional peer dependency | `import "tenanso"` has zero hono imports. Only `import "tenanso/hono"` requires it. |
-| LRU connection pool | Caps memory/file descriptor usage. Configurable via `maxConnections` (default 50). |
-| Auth is out of scope | tenanso resolves tenants, not users. Compose with your auth stack via the `resolve` function. |
 
 ## License
 
