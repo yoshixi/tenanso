@@ -63,6 +63,8 @@ const tenanso = createTenanso({
   schema,
   // New tenant databases are cloned from the seed database
   seed: { database: "seed-db" },
+  // Pass additional Drizzle options (e.g. casing)
+  drizzleOptions: { casing: "snake_case" },
 });
 ```
 
@@ -209,6 +211,7 @@ const tenanso = createTenanso({
   schema: Record<string, unknown>; // Drizzle schema
   seed?: { database: string };  // Clone new tenants from this database
   maxConnections?: number;      // Max cached connections (default: 50)
+  drizzleOptions?: Record<string, unknown>; // Additional options passed to drizzle()
 });
 ```
 

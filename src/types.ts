@@ -124,6 +124,7 @@ export interface SeedConfig {
  *   authToken: process.env.TURSO_GROUP_AUTH_TOKEN!,
  *   schema,
  *   seed: { database: "seed-db" },
+ *   drizzleOptions: { casing: "snake_case" },
  * });
  * ```
  */
