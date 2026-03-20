@@ -14,12 +14,14 @@ export class ConnectionPool {
   private readonly authToken: string | undefined;
   private readonly schema: Record<string, unknown>;
   private readonly maxConnections: number;
+  private readonly drizzleOptions: Record<string, unknown>;
 
   constructor(config: TenansoConfig) {
     this.databaseUrl = config.databaseUrl;
     this.authToken = config.authToken || undefined;
     this.schema = config.schema;
     this.maxConnections = config.maxConnections ?? 50;
+    this.drizzleOptions = config.drizzleOptions ?? {};
   }
 
   getDb(tenant: string): DrizzleDb {
@@ -36,7 +38,7 @@ export class ConnectionPool {
       url,
       ...(this.authToken ? { authToken: this.authToken } : {}),
     });
-    const db = drizzle(client, { schema: this.schema });
+    const db = drizzle(client, { ...this.drizzleOptions, schema: this.schema });
 
     this.cache.set(tenant, { client, db, lastUsed: Date.now() });
     return db;

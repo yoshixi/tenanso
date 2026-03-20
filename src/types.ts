@@ -190,6 +190,22 @@ export interface TenansoConfig {
    * @defaultValue 50
    */
   maxConnections?: number | undefined;
+  /**
+   * Additional options passed to `drizzle()` when creating database instances.
+   *
+   * Use this to configure Drizzle ORM behavior such as column name casing.
+   * The `schema` option is always set from {@link TenansoConfig.schema} and
+   * cannot be overridden here.
+   *
+   * @example
+   * ```typescript
+   * const tenanso = createTenanso({
+   *   // ...
+   *   drizzleOptions: { casing: "snake_case" },
+   * });
+   * ```
+   */
+  drizzleOptions?: Record<string, unknown> | undefined;
 }
 
 /**
