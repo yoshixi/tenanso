@@ -2,6 +2,7 @@ import type { SeedConfig, TursoConfig } from "./types.js";
 
 interface TursoDatabase {
   Name: string;
+  group?: string;
 }
 
 interface ListDatabasesResponse {
@@ -94,7 +95,9 @@ export class TursoApi {
     }
 
     const data = (await res.json()) as ListDatabasesResponse;
-    return data.databases.map((db) => db.Name);
+    return data.databases
+      .filter((db) => db.group === this.group)
+      .map((db) => db.Name);
   }
 
   async databaseExists(name: string): Promise<boolean> {

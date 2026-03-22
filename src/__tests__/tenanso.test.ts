@@ -113,7 +113,10 @@ describe("createTenanso", () => {
       vi.spyOn(globalThis, "fetch").mockResolvedValue(
         new Response(
           JSON.stringify({
-            databases: [{ Name: "a" }, { Name: "b" }],
+            databases: [
+              { Name: "a", group: "default" },
+              { Name: "b", group: "default" },
+            ],
           }),
           { status: 200 }
         )

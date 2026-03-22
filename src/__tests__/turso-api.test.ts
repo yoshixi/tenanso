@@ -103,11 +103,15 @@ describe("TursoApi", () => {
   });
 
   describe("listDatabases", () => {
-    it("returns database names", async () => {
+    it("returns database names filtered by group", async () => {
       vi.spyOn(globalThis, "fetch").mockResolvedValue(
         new Response(
           JSON.stringify({
-            databases: [{ Name: "tenant-a" }, { Name: "tenant-b" }],
+            databases: [
+              { Name: "tenant-a", group: "default" },
+              { Name: "tenant-b", group: "default" },
+              { Name: "other-db", group: "other-group" },
+            ],
           }),
           { status: 200 }
         )
