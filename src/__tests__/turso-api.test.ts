@@ -36,8 +36,8 @@ describe("TursoApi", () => {
     });
 
     it("includes seed when configured", async () => {
-      const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(
-        new Response("{}", { status: 200 })
+      const fetchSpy = vi.spyOn(globalThis, "fetch").mockImplementation(() =>
+        Promise.resolve(new Response("{}", { status: 200 }))
       );
 
       const api = new TursoApi(tursoConfig, { database: "seed-db" });
@@ -64,8 +64,8 @@ describe("TursoApi", () => {
     });
 
     it("accepts valid tenant names", async () => {
-      vi.spyOn(globalThis, "fetch").mockResolvedValue(
-        new Response("{}", { status: 200 })
+      vi.spyOn(globalThis, "fetch").mockImplementation(() =>
+        Promise.resolve(new Response("{}", { status: 200 }))
       );
       const api = new TursoApi(tursoConfig, undefined);
       await expect(api.createDatabase("valid-name")).resolves.not.toThrow();

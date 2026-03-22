@@ -5,6 +5,13 @@ interface TursoDatabase {
   group?: string;
 }
 
+interface CreateDatabaseResponse {
+  database: {
+    Name: string;
+    Hostname?: string;
+  };
+}
+
 interface ListDatabasesResponse {
   databases: TursoDatabase[];
 }
@@ -24,13 +31,19 @@ export class TursoApi {
   private readonly apiToken: string;
   private readonly group: string;
   private readonly seed: SeedConfig | undefined;
+  private readonly waitForReady: boolean;
 
-  constructor(config: TursoConfig, seed: SeedConfig | undefined) {
+  constructor(
+    config: TursoConfig,
+    seed: SeedConfig | undefined,
+    waitForReady: boolean = true
+  ) {
     const base = config.baseUrl ?? "https://api.turso.tech";
     this.baseUrl = `${base}/v1/organizations/${config.organizationSlug}`;
     this.apiToken = config.apiToken;
     this.group = config.group;
     this.seed = seed;
+    this.waitForReady = waitForReady;
   }
 
   async createDatabase(name: string): Promise<void> {
@@ -63,6 +76,40 @@ export class TursoApi {
         `Failed to create database "${name}": ${res.status} ${text}`
       );
     }
+
+    if (!this.waitForReady) return;
+
+    const data = (await res.json()) as CreateDatabaseResponse;
+    const hostname = data.database?.Hostname;
+    if (hostname) {
+      await this.pollHealthEndpoint(hostname);
+    }
+  }
+
+  private async pollHealthEndpoint(hostname: string): Promise<void> {
+    const scheme = /^(localhost|127\.0\.0\.1)(:|$)/.test(hostname)
+      ? "http"
+      : "https";
+    const url = `${scheme}://${hostname}/health`;
+    const maxAttempts = 30;
+    const delayMs = 1000;
+
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      try {
+        const res = await fetch(url);
+        if (res.ok) return;
+      } catch {
+        // Connection refused / DNS not ready — keep retrying
+      }
+
+      if (attempt < maxAttempts) {
+        await new Promise((resolve) => setTimeout(resolve, delayMs));
+      }
+    }
+
+    throw new Error(
+      `Database "${hostname}" not ready after ${maxAttempts} seconds`
+    );
   }
 
   async deleteDatabase(name: string): Promise<void> {

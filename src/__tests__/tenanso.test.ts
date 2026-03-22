@@ -74,8 +74,8 @@ describe("createTenanso", () => {
 
   describe("createTenant", () => {
     it("calls Turso Platform API", async () => {
-      const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(
-        new Response("{}", { status: 200 })
+      const fetchSpy = vi.spyOn(globalThis, "fetch").mockImplementation(() =>
+        Promise.resolve(new Response("{}", { status: 200 }))
       );
 
       const tenanso = createTenanso(config);
