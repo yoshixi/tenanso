@@ -70,7 +70,7 @@ export function createTenanso(config: TenansoConfig): TenansoInstance {
   }
 
   const pool = new ConnectionPool(config);
-  const api = new TursoApi(config.turso, config.seed, config.waitForReady ?? true);
+  const api = new TursoApi(config.turso, config.seed, config.waitForReady ?? true, config.authToken);
 
   return {
     async createTenant(name: string): Promise<void> {

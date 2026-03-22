@@ -32,11 +32,13 @@ export class TursoApi {
   private readonly group: string;
   private readonly seed: SeedConfig | undefined;
   private readonly waitForReady: boolean;
+  private readonly dbAuthToken: string;
 
   constructor(
     config: TursoConfig,
     seed: SeedConfig | undefined,
-    waitForReady: boolean = true
+    waitForReady: boolean = true,
+    dbAuthToken: string = ""
   ) {
     const base = config.baseUrl ?? "https://api.turso.tech";
     this.baseUrl = `${base}/v1/organizations/${config.organizationSlug}`;
@@ -44,6 +46,7 @@ export class TursoApi {
     this.group = config.group;
     this.seed = seed;
     this.waitForReady = waitForReady;
+    this.dbAuthToken = dbAuthToken;
   }
 
   async createDatabase(name: string): Promise<void> {
@@ -96,7 +99,11 @@ export class TursoApi {
 
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
       try {
-        const res = await fetch(url);
+        const headers: Record<string, string> = {};
+        if (this.dbAuthToken) {
+          headers["Authorization"] = `Bearer ${this.dbAuthToken}`;
+        }
+        const res = await fetch(url, { headers });
         if (res.ok) return;
       } catch {
         // Connection refused / DNS not ready — keep retrying
