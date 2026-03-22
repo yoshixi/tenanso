@@ -192,6 +192,18 @@ export interface TenansoConfig {
    */
   maxConnections?: number | undefined;
   /**
+   * Whether to wait for the database to be ready after creation.
+   *
+   * When `true` (the default), {@link TenansoInstance.createTenant} polls the
+   * database's health endpoint after the Turso Platform API confirms creation,
+   * and only resolves once the database is accessible.
+   *
+   * Set to `false` if you have your own readiness logic.
+   *
+   * @defaultValue `true`
+   */
+  waitForReady?: boolean | undefined;
+  /**
    * Additional options passed to `drizzle()` when creating database instances.
    *
    * Use this to configure Drizzle ORM behavior such as column name casing.

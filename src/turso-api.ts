@@ -2,6 +2,14 @@ import type { SeedConfig, TursoConfig } from "./types.js";
 
 interface TursoDatabase {
   Name: string;
+  group?: string;
+}
+
+interface CreateDatabaseResponse {
+  database: {
+    Name: string;
+    Hostname?: string;
+  };
 }
 
 interface ListDatabasesResponse {
@@ -23,13 +31,22 @@ export class TursoApi {
   private readonly apiToken: string;
   private readonly group: string;
   private readonly seed: SeedConfig | undefined;
+  private readonly waitForReady: boolean;
+  private readonly dbAuthToken: string;
 
-  constructor(config: TursoConfig, seed: SeedConfig | undefined) {
+  constructor(
+    config: TursoConfig,
+    seed: SeedConfig | undefined,
+    waitForReady: boolean = true,
+    dbAuthToken: string = ""
+  ) {
     const base = config.baseUrl ?? "https://api.turso.tech";
     this.baseUrl = `${base}/v1/organizations/${config.organizationSlug}`;
     this.apiToken = config.apiToken;
     this.group = config.group;
     this.seed = seed;
+    this.waitForReady = waitForReady;
+    this.dbAuthToken = dbAuthToken;
   }
 
   async createDatabase(name: string): Promise<void> {
@@ -62,6 +79,44 @@ export class TursoApi {
         `Failed to create database "${name}": ${res.status} ${text}`
       );
     }
+
+    if (!this.waitForReady) return;
+
+    const data = (await res.json()) as CreateDatabaseResponse;
+    const hostname = data.database?.Hostname;
+    if (hostname) {
+      await this.pollHealthEndpoint(hostname);
+    }
+  }
+
+  private async pollHealthEndpoint(hostname: string): Promise<void> {
+    const scheme = /^(localhost|127\.0\.0\.1)(:|$)/.test(hostname)
+      ? "http"
+      : "https";
+    const url = `${scheme}://${hostname}/health`;
+    const maxAttempts = 30;
+    const delayMs = 1000;
+
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      try {
+        const headers: Record<string, string> = {};
+        if (this.dbAuthToken) {
+          headers["Authorization"] = `Bearer ${this.dbAuthToken}`;
+        }
+        const res = await fetch(url, { headers });
+        if (res.ok) return;
+      } catch {
+        // Connection refused / DNS not ready — keep retrying
+      }
+
+      if (attempt < maxAttempts) {
+        await new Promise((resolve) => setTimeout(resolve, delayMs));
+      }
+    }
+
+    throw new Error(
+      `Database "${hostname}" not ready after ${maxAttempts} seconds`
+    );
   }
 
   async deleteDatabase(name: string): Promise<void> {
@@ -83,7 +138,8 @@ export class TursoApi {
   }
 
   async listDatabases(): Promise<string[]> {
-    const res = await fetch(`${this.baseUrl}/databases`, {
+    const params = new URLSearchParams({ group: this.group });
+    const res = await fetch(`${this.baseUrl}/databases?${params}`, {
       headers: {
         Authorization: `Bearer ${this.apiToken}`,
       },

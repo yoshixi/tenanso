@@ -70,11 +70,13 @@ async function applySchema(dbPath: string): Promise<void> {
 
 function createMockTursoApi() {
   const api = new Hono();
+  const dbGroups = new Map<string, string>();
 
   // POST /v1/organizations/:org/databases — create database
   api.post("/v1/organizations/:org/databases", async (c) => {
     const body = await c.req.json();
     const dbName = body.name as string;
+    const group = (body.group as string) ?? "default";
     const dbPath = path.join(TEST_DIR, `${dbName}.db`);
 
     if (fs.existsSync(dbPath)) {
@@ -94,7 +96,8 @@ function createMockTursoApi() {
       await applySchema(dbPath);
     }
 
-    return c.json({ database: { Name: dbName } }, 200);
+    dbGroups.set(dbName, group);
+    return c.json({ database: { Name: dbName, group } }, 200);
   });
 
   // DELETE /v1/organizations/:org/databases/:name — delete database
@@ -124,10 +127,18 @@ function createMockTursoApi() {
 
   // GET /v1/organizations/:org/databases — list databases
   api.get("/v1/organizations/:org/databases", async (c) => {
+    const groupFilter = c.req.query("group");
     const files = fs.readdirSync(TEST_DIR).filter((f) => f.endsWith(".db"));
-    const databases = files.map((f) => ({
-      Name: f.replace(".db", ""),
-    }));
+    let databases = files.map((f) => {
+      const name = f.replace(".db", "");
+      return {
+        Name: name,
+        group: dbGroups.get(name) ?? "default",
+      };
+    });
+    if (groupFilter) {
+      databases = databases.filter((db) => db.group === groupFilter);
+    }
     return c.json({ databases }, 200);
   });
 
@@ -276,6 +287,95 @@ describe("e2e: tenanso + Hono with mock Turso API", () => {
 
     it("fails to create a tenant that already exists", async () => {
       await expect(tenanso.createTenant("tenant-a")).rejects.toThrow("409");
+    });
+  });
+
+  // --------------------------------------------------------
+  // Health check polling after createTenant
+  // --------------------------------------------------------
+
+  describe("waitForReady health check", () => {
+    let healthServer: ReturnType<typeof serve>;
+    let healthPort: number;
+
+    afterAll(() => {
+      healthServer?.close();
+    });
+
+    it("polls the health endpoint until the database is ready", { timeout: 15000 }, async () => {
+      // Set up a mock health server that returns 404 for the first 2 requests, then 200
+      let healthRequestCount = 0;
+      const healthApp = new Hono();
+      healthApp.get("/health", (c) => {
+        healthRequestCount++;
+        if (healthRequestCount <= 2) {
+          return c.text("not ready", 404);
+        }
+        return c.text("", 200);
+      });
+
+      healthServer = serve({ fetch: healthApp.fetch, port: 0 });
+      await new Promise<void>((resolve) => {
+        healthServer.on("listening", resolve);
+      });
+      const addr = healthServer.address();
+      healthPort = typeof addr === "object" && addr ? addr.port : 0;
+
+      // Create a mock Turso API that returns Hostname pointing to our health server
+      const mockApiWithHostname = new Hono();
+      mockApiWithHostname.post(
+        "/v1/organizations/:org/databases",
+        async (c) => {
+          const body = await c.req.json();
+          const dbName = body.name as string;
+          const dbPath = path.join(TEST_DIR, `${dbName}.db`);
+          await applySchema(dbPath);
+          return c.json(
+            {
+              database: {
+                Name: dbName,
+                Hostname: `127.0.0.1:${healthPort}`,
+                group: body.group,
+              },
+            },
+            200
+          );
+        }
+      );
+
+      const mockServerWithHostname = serve({
+        fetch: mockApiWithHostname.fetch,
+        port: 0,
+      });
+      await new Promise<void>((resolve) => {
+        mockServerWithHostname.on("listening", resolve);
+      });
+      const mockAddr = mockServerWithHostname.address();
+      const mockPort =
+        typeof mockAddr === "object" && mockAddr ? mockAddr.port : 0;
+
+      const tenansoWithHealth = createTenanso({
+        turso: {
+          organizationSlug: "test-org",
+          apiToken: "test-token",
+          group: "test-group",
+          baseUrl: `http://127.0.0.1:${mockPort}`,
+        },
+        databaseUrl: `file:${TEST_DIR}/{tenant}.db`,
+        authToken: "",
+        schema: dbSchema,
+        waitForReady: true,
+      });
+
+      await tenansoWithHealth.createTenant("tenant-health");
+
+      // Health endpoint was hit at least 3 times (2 failures + 1 success)
+      expect(healthRequestCount).toBeGreaterThanOrEqual(3);
+      expect(fs.existsSync(path.join(TEST_DIR, "tenant-health.db"))).toBe(
+        true
+      );
+
+      mockServerWithHostname.close();
     });
   });
 
@@ -477,12 +577,14 @@ describe("e2e: tenanso + Hono with mock Turso API", () => {
   // --------------------------------------------------------
 
   describe("listTenants / tenantExists", () => {
-    it("lists all tenant databases", async () => {
+    it("lists all tenant databases in the configured group", async () => {
       const tenants = await tenanso.listTenants();
       expect(tenants).toContain("tenant-a");
       expect(tenants).toContain("tenant-b");
       expect(tenants).toContain("tenant-c");
-      expect(tenants).toContain("seed-db");
+      // seed-db is not created through the API with the test group,
+      // so it should not appear in the filtered list
+      expect(tenants).not.toContain("seed-db");
     });
 
     it("tenantExists returns true for existing tenant", async () => {

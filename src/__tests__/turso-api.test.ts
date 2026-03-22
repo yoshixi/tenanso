@@ -36,8 +36,8 @@ describe("TursoApi", () => {
     });
 
     it("includes seed when configured", async () => {
-      const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(
-        new Response("{}", { status: 200 })
+      const fetchSpy = vi.spyOn(globalThis, "fetch").mockImplementation(() =>
+        Promise.resolve(new Response("{}", { status: 200 }))
       );
 
       const api = new TursoApi(tursoConfig, { database: "seed-db" });
@@ -64,8 +64,8 @@ describe("TursoApi", () => {
     });
 
     it("accepts valid tenant names", async () => {
-      vi.spyOn(globalThis, "fetch").mockResolvedValue(
-        new Response("{}", { status: 200 })
+      vi.spyOn(globalThis, "fetch").mockImplementation(() =>
+        Promise.resolve(new Response("{}", { status: 200 }))
       );
       const api = new TursoApi(tursoConfig, undefined);
       await expect(api.createDatabase("valid-name")).resolves.not.toThrow();
@@ -103,11 +103,14 @@ describe("TursoApi", () => {
   });
 
   describe("listDatabases", () => {
-    it("returns database names", async () => {
-      vi.spyOn(globalThis, "fetch").mockResolvedValue(
+    it("sends group query parameter and returns database names", async () => {
+      const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(
         new Response(
           JSON.stringify({
-            databases: [{ Name: "tenant-a" }, { Name: "tenant-b" }],
+            databases: [
+              { Name: "tenant-a", group: "default" },
+              { Name: "tenant-b", group: "default" },
+            ],
           }),
           { status: 200 }
         )
@@ -116,6 +119,10 @@ describe("TursoApi", () => {
       const api = new TursoApi(tursoConfig, undefined);
       const result = await api.listDatabases();
 
+      const [url] = fetchSpy.mock.calls[0]!;
+      expect(url).toBe(
+        "https://api.turso.tech/v1/organizations/test-org/databases?group=default"
+      );
       expect(result).toEqual(["tenant-a", "tenant-b"]);
     });
   });
