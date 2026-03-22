@@ -103,14 +103,13 @@ describe("TursoApi", () => {
   });
 
   describe("listDatabases", () => {
-    it("returns database names filtered by group", async () => {
-      vi.spyOn(globalThis, "fetch").mockResolvedValue(
+    it("sends group query parameter and returns database names", async () => {
+      const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(
         new Response(
           JSON.stringify({
             databases: [
               { Name: "tenant-a", group: "default" },
               { Name: "tenant-b", group: "default" },
-              { Name: "other-db", group: "other-group" },
             ],
           }),
           { status: 200 }
@@ -120,6 +119,10 @@ describe("TursoApi", () => {
       const api = new TursoApi(tursoConfig, undefined);
       const result = await api.listDatabases();
 
+      const [url] = fetchSpy.mock.calls[0]!;
+      expect(url).toBe(
+        "https://api.turso.tech/v1/organizations/test-org/databases?group=default"
+      );
       expect(result).toEqual(["tenant-a", "tenant-b"]);
     });
   });

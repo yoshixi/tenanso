@@ -127,14 +127,18 @@ function createMockTursoApi() {
 
   // GET /v1/organizations/:org/databases — list databases
   api.get("/v1/organizations/:org/databases", async (c) => {
+    const groupFilter = c.req.query("group");
     const files = fs.readdirSync(TEST_DIR).filter((f) => f.endsWith(".db"));
-    const databases = files.map((f) => {
+    let databases = files.map((f) => {
       const name = f.replace(".db", "");
       return {
         Name: name,
         group: dbGroups.get(name) ?? "default",
       };
     });
+    if (groupFilter) {
+      databases = databases.filter((db) => db.group === groupFilter);
+    }
     return c.json({ databases }, 200);
   });
 

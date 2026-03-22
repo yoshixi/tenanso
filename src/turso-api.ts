@@ -131,7 +131,8 @@ export class TursoApi {
   }
 
   async listDatabases(): Promise<string[]> {
-    const res = await fetch(`${this.baseUrl}/databases`, {
+    const params = new URLSearchParams({ group: this.group });
+    const res = await fetch(`${this.baseUrl}/databases?${params}`, {
       headers: {
         Authorization: `Bearer ${this.apiToken}`,
       },
@@ -142,9 +143,7 @@ export class TursoApi {
     }
 
     const data = (await res.json()) as ListDatabasesResponse;
-    return data.databases
-      .filter((db) => db.group === this.group)
-      .map((db) => db.Name);
+    return data.databases.map((db) => db.Name);
   }
 
   async databaseExists(name: string): Promise<boolean> {
