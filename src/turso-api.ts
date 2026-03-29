@@ -59,7 +59,7 @@ export class TursoApi {
     if (!res.ok) {
       const text = await res.text();
       throw new Error(
-        `Failed to create database "${name}": ${res.status} ${text}`
+        `Failed to create database "${name}" in group(${body.group}) (${this.seed?.database ? `from seed ${this.seed.database}` : "without seed"}): ${res.status} ${text}`
       );
     }
   }
@@ -77,7 +77,7 @@ export class TursoApi {
     if (!res.ok) {
       const text = await res.text();
       throw new Error(
-        `Failed to delete database "${name}": ${res.status} ${text}`
+        `Failed to delete database "${name}" in group(${this.group}): ${res.status} ${text}`
       );
     }
   }
@@ -90,7 +90,8 @@ export class TursoApi {
     });
 
     if (!res.ok) {
-      throw new Error(`Failed to list databases: ${res.status}`);
+      const text = await res.text();
+      throw new Error(`Failed to list databases: ${res.status} ${text}`);
     }
 
     const data = (await res.json()) as ListDatabasesResponse;
@@ -109,7 +110,7 @@ export class TursoApi {
 
     const text = await res.text();
     throw new Error(
-      `Failed to check database "${name}": ${res.status} ${text}`
+      `Failed to check database "${name}" in group(${this.group}): ${res.status} ${text}`
     );
   }
 }

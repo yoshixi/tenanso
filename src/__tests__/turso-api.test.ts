@@ -80,7 +80,7 @@ describe("TursoApi", () => {
 
       const api = new TursoApi(tursoConfig, undefined);
       await expect(api.createDatabase("my-tenant")).rejects.toThrow(
-        'Failed to create database "my-tenant": 429'
+        'Failed to create database "my-tenant" in group(default) (without seed): 429 quota exceeded'
       );
     });
   });
@@ -153,7 +153,7 @@ describe("TursoApi", () => {
 
       const api = new TursoApi(tursoConfig, undefined);
       await expect(api.databaseExists("my-tenant")).rejects.toThrow(
-        'Failed to check database "my-tenant": 401'
+        'Failed to check database "my-tenant" in group(default): 401 unauthorized'
       );
     });
   });
