@@ -86,28 +86,61 @@ describe("TursoApi", () => {
   });
 
   describe("deleteDatabase", () => {
-    it("sends DELETE to Turso API", async () => {
-      const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(
-        new Response("{}", { status: 200 })
-      );
+    it("sends DELETE to Turso API after verifying group", async () => {
+      const fetchSpy = vi.spyOn(globalThis, "fetch")
+        .mockResolvedValueOnce(
+          new Response(
+            JSON.stringify({ database: { Name: "my-tenant", group: "default" } }),
+            { status: 200 }
+          )
+        )
+        .mockResolvedValueOnce(
+          new Response("{}", { status: 200 })
+        );
 
       const api = new TursoApi(tursoConfig, undefined);
       await api.deleteDatabase("my-tenant");
 
-      const [url, opts] = fetchSpy.mock.calls[0]!;
-      expect(url).toBe(
+      expect(fetchSpy).toHaveBeenCalledTimes(2);
+
+      // First call: GET to verify group
+      const [getUrl] = fetchSpy.mock.calls[0]!;
+      expect(getUrl).toBe(
         "https://api.turso.tech/v1/organizations/test-org/databases/my-tenant"
       );
-      expect(opts?.method).toBe("DELETE");
+
+      // Second call: DELETE
+      const [deleteUrl, deleteOpts] = fetchSpy.mock.calls[1]!;
+      expect(deleteUrl).toBe(
+        "https://api.turso.tech/v1/organizations/test-org/databases/my-tenant"
+      );
+      expect(deleteOpts?.method).toBe("DELETE");
+    });
+
+    it("refuses to delete database from a different group", async () => {
+      vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({ database: { Name: "my-tenant", group: "other-group" } }),
+          { status: 200 }
+        )
+      );
+
+      const api = new TursoApi(tursoConfig, undefined);
+      await expect(api.deleteDatabase("my-tenant")).rejects.toThrow(
+        'Database "my-tenant" belongs to group "other-group", not group "default". Refusing to operate on it.'
+      );
     });
   });
 
   describe("listDatabases", () => {
-    it("returns database names", async () => {
-      vi.spyOn(globalThis, "fetch").mockResolvedValue(
+    it("filters by group via query parameter", async () => {
+      const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(
         new Response(
           JSON.stringify({
-            databases: [{ Name: "tenant-a" }, { Name: "tenant-b" }],
+            databases: [
+              { Name: "tenant-a", group: "default" },
+              { Name: "tenant-b", group: "default" },
+            ],
           }),
           { status: 200 }
         )
@@ -117,15 +150,21 @@ describe("TursoApi", () => {
       const result = await api.listDatabases();
 
       expect(result).toEqual(["tenant-a", "tenant-b"]);
+
+      const [url] = fetchSpy.mock.calls[0]!;
+      expect(url).toBe(
+        "https://api.turso.tech/v1/organizations/test-org/databases?group=default"
+      );
     });
   });
 
   describe("databaseExists", () => {
-    it("returns true when database exists", async () => {
+    it("returns true when database exists in the configured group", async () => {
       vi.spyOn(globalThis, "fetch").mockResolvedValue(
-        new Response(JSON.stringify({ database: { Name: "my-tenant" } }), {
-          status: 200,
-        })
+        new Response(
+          JSON.stringify({ database: { Name: "my-tenant", group: "default" } }),
+          { status: 200 }
+        )
       );
 
       const api = new TursoApi(tursoConfig, undefined);
@@ -135,6 +174,18 @@ describe("TursoApi", () => {
       expect(url).toBe(
         "https://api.turso.tech/v1/organizations/test-org/databases/my-tenant"
       );
+    });
+
+    it("returns false when database exists in a different group", async () => {
+      vi.spyOn(globalThis, "fetch").mockResolvedValue(
+        new Response(
+          JSON.stringify({ database: { Name: "my-tenant", group: "other-group" } }),
+          { status: 200 }
+        )
+      );
+
+      const api = new TursoApi(tursoConfig, undefined);
+      expect(await api.databaseExists("my-tenant")).toBe(false);
     });
 
     it("returns false when database does not exist", async () => {

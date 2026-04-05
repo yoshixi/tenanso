@@ -274,8 +274,8 @@ export interface TenansoInstance {
   /**
    * List all tenant database names via Turso Platform API.
    *
-   * Returns the names of all databases in the configured Turso organization.
-   * Note that this includes all databases, not just those created by tenanso.
+   * Returns the names of databases in the configured Turso organization
+   * that belong to the configured group.
    *
    * This calls the Turso Platform API, so it has network latency (~100-200ms).
    * For per-request tenant validation, consider caching the result or using
