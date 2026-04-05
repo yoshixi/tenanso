@@ -71,10 +71,14 @@ async function applySchema(dbPath: string): Promise<void> {
 function createMockTursoApi() {
   const api = new Hono();
 
+  // In-memory store of database name → group
+  const dbGroups = new Map<string, string>();
+
   // POST /v1/organizations/:org/databases — create database
   api.post("/v1/organizations/:org/databases", async (c) => {
     const body = await c.req.json();
     const dbName = body.name as string;
+    const group = body.group as string;
     const dbPath = path.join(TEST_DIR, `${dbName}.db`);
 
     if (fs.existsSync(dbPath)) {
@@ -94,7 +98,8 @@ function createMockTursoApi() {
       await applySchema(dbPath);
     }
 
-    return c.json({ database: { Name: dbName } }, 200);
+    dbGroups.set(dbName, group);
+    return c.json({ database: { Name: dbName, group } }, 200);
   });
 
   // DELETE /v1/organizations/:org/databases/:name — delete database
@@ -107,6 +112,7 @@ function createMockTursoApi() {
     }
 
     fs.unlinkSync(dbPath);
+    dbGroups.delete(dbName);
     return c.json({ database: dbName }, 200);
   });
 
@@ -119,15 +125,20 @@ function createMockTursoApi() {
       return c.json({ error: "not found" }, 404);
     }
 
-    return c.json({ database: { Name: dbName } }, 200);
+    return c.json({ database: { Name: dbName, group: dbGroups.get(dbName) } }, 200);
   });
 
   // GET /v1/organizations/:org/databases — list databases
   api.get("/v1/organizations/:org/databases", async (c) => {
+    const groupFilter = c.req.query("group");
     const files = fs.readdirSync(TEST_DIR).filter((f) => f.endsWith(".db"));
-    const databases = files.map((f) => ({
-      Name: f.replace(".db", ""),
-    }));
+    let databases = files.map((f) => {
+      const name = f.replace(".db", "");
+      return { Name: name, group: dbGroups.get(name) };
+    });
+    if (groupFilter) {
+      databases = databases.filter((db) => db.group === groupFilter);
+    }
     return c.json({ databases }, 200);
   });
 
@@ -477,12 +488,13 @@ describe("e2e: tenanso + Hono with mock Turso API", () => {
   // --------------------------------------------------------
 
   describe("listTenants / tenantExists", () => {
-    it("lists all tenant databases", async () => {
+    it("lists only tenant databases in the configured group", async () => {
       const tenants = await tenanso.listTenants();
       expect(tenants).toContain("tenant-a");
       expect(tenants).toContain("tenant-b");
       expect(tenants).toContain("tenant-c");
-      expect(tenants).toContain("seed-db");
+      // seed-db was created outside the mock API, so it has no group
+      expect(tenants).not.toContain("seed-db");
     });
 
     it("tenantExists returns true for existing tenant", async () => {

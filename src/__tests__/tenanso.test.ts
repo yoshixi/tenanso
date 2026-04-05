@@ -89,9 +89,16 @@ describe("createTenanso", () => {
 
   describe("deleteTenant", () => {
     it("calls Turso API and removes from connection pool", async () => {
-      const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(
-        new Response("{}", { status: 200 })
-      );
+      const fetchSpy = vi.spyOn(globalThis, "fetch")
+        .mockResolvedValueOnce(
+          new Response(
+            JSON.stringify({ database: { Name: "old-tenant", group: "default" } }),
+            { status: 200 }
+          )
+        )
+        .mockResolvedValueOnce(
+          new Response("{}", { status: 200 })
+        );
 
       const tenanso = createTenanso(config);
 
@@ -100,7 +107,7 @@ describe("createTenanso", () => {
 
       await tenanso.deleteTenant("old-tenant");
 
-      expect(fetchSpy).toHaveBeenCalledOnce();
+      expect(fetchSpy).toHaveBeenCalledTimes(2);
 
       // Should get a new instance (cache was cleared)
       const db = tenanso.dbFor("old-tenant");
@@ -113,7 +120,7 @@ describe("createTenanso", () => {
       vi.spyOn(globalThis, "fetch").mockResolvedValue(
         new Response(
           JSON.stringify({
-            databases: [{ Name: "a" }, { Name: "b" }],
+            databases: [{ Name: "a", group: "default" }, { Name: "b", group: "default" }],
           }),
           { status: 200 }
         )
@@ -129,7 +136,7 @@ describe("createTenanso", () => {
     it("returns true for existing tenant", async () => {
       vi.spyOn(globalThis, "fetch").mockResolvedValue(
         new Response(
-          JSON.stringify({ database: { Name: "acme" } }),
+          JSON.stringify({ database: { Name: "acme", group: "default" } }),
           { status: 200 }
         )
       );

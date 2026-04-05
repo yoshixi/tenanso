@@ -2,6 +2,11 @@ import type { SeedConfig, TursoConfig } from "./types.js";
 
 interface TursoDatabase {
   Name: string;
+  group: string;
+}
+
+interface GetDatabaseResponse {
+  database: TursoDatabase;
 }
 
 interface ListDatabasesResponse {
@@ -66,6 +71,7 @@ export class TursoApi {
 
   async deleteDatabase(name: string): Promise<void> {
     validateTenantName(name);
+    await this.assertBelongsToGroup(name);
 
     const res = await fetch(`${this.baseUrl}/databases/${name}`, {
       method: "DELETE",
@@ -83,7 +89,8 @@ export class TursoApi {
   }
 
   async listDatabases(): Promise<string[]> {
-    const res = await fetch(`${this.baseUrl}/databases`, {
+    const params = new URLSearchParams({ group: this.group });
+    const res = await fetch(`${this.baseUrl}/databases?${params}`, {
       headers: {
         Authorization: `Bearer ${this.apiToken}`,
       },
@@ -105,12 +112,44 @@ export class TursoApi {
       },
     });
 
-    if (res.ok) return true;
     if (res.status === 404) return false;
 
-    const text = await res.text();
-    throw new Error(
-      `Failed to check database "${name}" in group(${this.group}): ${res.status} ${text}`
-    );
+    if (!res.ok) {
+      const text = await res.text();
+      throw new Error(
+        `Failed to check database "${name}" in group(${this.group}): ${res.status} ${text}`
+      );
+    }
+
+    const data = (await res.json()) as GetDatabaseResponse;
+    return data.database.group === this.group;
+  }
+
+  private async assertBelongsToGroup(name: string): Promise<void> {
+    const res = await fetch(`${this.baseUrl}/databases/${name}`, {
+      headers: {
+        Authorization: `Bearer ${this.apiToken}`,
+      },
+    });
+
+    if (res.status === 404) {
+      throw new Error(
+        `Database "${name}" not found in group(${this.group}).`
+      );
+    }
+
+    if (!res.ok) {
+      const text = await res.text();
+      throw new Error(
+        `Failed to check database "${name}" in group(${this.group}): ${res.status} ${text}`
+      );
+    }
+
+    const data = (await res.json()) as GetDatabaseResponse;
+    if (data.database.group !== this.group) {
+      throw new Error(
+        `Database "${name}" belongs to group "${data.database.group}", not group "${this.group}". Refusing to operate on it.`
+      );
+    }
   }
 }
